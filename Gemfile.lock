@@ -310,10 +310,9 @@ GEM
       logger
       rack (>= 2.2.4)
       redis-client (>= 0.22.2)
-    sidekiq-scheduler (5.0.6)
+    sidekiq-scheduler (6.0.1)
       rufus-scheduler (~> 3.2)
-      sidekiq (>= 6, < 8)
-      tilt (>= 1.4.0, < 3)
+      sidekiq (>= 7.3, < 9)
     simplecov (0.22.0)
       docile (~> 1.1)
       simplecov-html (~> 0.11)
@@ -322,7 +321,6 @@ GEM
     simplecov_json_formatter (0.1.4)
     stringio (3.2.0)
     thor (1.5.0)
-    tilt (2.7.0)
     timecop (0.9.11)
     timeout (0.6.1)
     tsort (0.2.0)
@@ -374,7 +372,7 @@ DEPENDENCIES
   rspec-rails (~> 7.1)
   shoulda-matchers (~> 6.4)
   sidekiq (~> 7.0)
-  sidekiq-scheduler (~> 5.0)
+  sidekiq-scheduler (~> 6.0)
   simplecov
   timecop (~> 0.9)
   tzinfo-data

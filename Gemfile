@@ -6,7 +6,7 @@ gem "puma", ">= 5.0"
 
 # Background jobs
 gem "sidekiq", "~> 7.0"
-gem "sidekiq-scheduler", "~> 5.0"
+gem "sidekiq-scheduler", "~> 6.0"
 
 # State machine for payment lifecycle
 gem "aasm", "~> 5.5"
