@@ -1,0 +1,49 @@
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+config/master.key
+config/credentials/*.key
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Logs
+/log/*
+!/log/.keep
+
+# Temp files
+/tmp/*
+!/tmp/.keep
+!/tmp/pids/.keep
+!/tmp/storage/.keep
+
+# Storage (user uploads)
+/storage/*
+!/storage/.keep
+
+# Bundler
+/.bundle
+/vendor/bundle
+
+# Node
+/node_modules
+yarn-error.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kamal secrets (contains real credentials)
+.kamal/secrets
+
+# Byebug history
+.byebug_history
+
+# Pidfiles
+/tmp/pids/*.pid
+
+# Coverage reports
+/coverage/
