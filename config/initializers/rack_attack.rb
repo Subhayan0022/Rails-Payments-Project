@@ -1,10 +1,9 @@
 # Rack::Attack — rate limiting and replay attack protection.
 # Uses Redis as the backing store when available, falls back to memory.
 class Rack::Attack
-  # Use Redis for distributed rate limiting across multiple app instances
-  Rack::Attack.cache.store = ActiveSupport::Cache::RedisCacheStore.new(
-    url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0")
-  )
+  # Use memory store for now; swap for RedisCacheStore in production
+  # for distributed rate limiting across multiple app instances
+  Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
 
   # Throttle all requests by IP (100 requests / 60s)
   throttle("req/ip", limit: 100, period: 60) do |req|
