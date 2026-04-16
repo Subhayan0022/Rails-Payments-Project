@@ -11,18 +11,13 @@ config/credentials/*.key
 *.iml
 
 # Logs
-/log/*
-!/log/.keep
+/log/
 
 # Temp files
-/tmp/*
-!/tmp/.keep
-!/tmp/pids/.keep
-!/tmp/storage/.keep
+/tmp/
 
 # Storage (user uploads)
-/storage/*
-!/storage/.keep
+/storage/
 
 # Bundler
 /.bundle
