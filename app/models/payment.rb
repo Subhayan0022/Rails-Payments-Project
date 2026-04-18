@@ -4,14 +4,14 @@ class Payment < ApplicationRecord
   PAYMENT_METHODS = %w[card bank_transfer].freeze
   CURRENCIES = %w[USD INR JPY].freeze
 
-  aasm column: :state do
+  aasm column: :status do
     state :pending, initial: true
     state :authorized
     state :captured
     state :failed
 
     event :authorize do
-      transitions from from: :pending, to: :authorized
+      transitions from: :pending, to: :authorized
       after { update!(authorized_at: Time.current) }
     end
 
@@ -32,5 +32,5 @@ class Payment < ApplicationRecord
   validates :payment_method, inclusion: { in: Payment::PAYMENT_METHODS }, presence: true
 
   has_many :payment_attempts, dependent: :destroy
-  has_many :webook_deliviries, dependent: :destroy
+  has_many :webhook_deliveries, dependent: :destroy
 end
