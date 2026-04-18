@@ -36,6 +36,7 @@ module PaymentGateway
       app/workers
       app/serializers
       app/validators
+      app/lib
       lib
     ].map { |p| Rails.root.join(p) }
 
