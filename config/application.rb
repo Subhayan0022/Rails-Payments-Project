@@ -33,10 +33,8 @@ module PaymentGateway
     # Autoload service objects, validators etc.
     config.autoload_paths += %w[
       app/services
-      app/workers
       app/serializers
       app/validators
-      app/lib
       lib
     ].map { |p| Rails.root.join(p) }
 
