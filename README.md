@@ -1,7 +1,5 @@
 # Payment Gateway API
 
-> **Status: Work In Progress** — core infrastructure is set up; features are actively being built.
-
 A production-grade mini payment gateway API built with Ruby on Rails. Designed with a focus on reliability, idempotency, asynchronous processing, and observability.
 
 ---
@@ -25,12 +23,12 @@ A production-grade mini payment gateway API built with Ruby on Rails. Designed w
 - [x] Rails API project setup with Docker Compose
 - [x] PostgreSQL + Redis + Sidekiq wired up
 - [x] CORS, rate limiting, structured JSON logging
-- [ ] Payment model with AASM state machine (`pending → authorized → captured / failed`)
-- [ ] `POST /api/v1/payments` and `GET /api/v1/payments/:id`
-- [ ] Idempotency-Key header support (duplicate request protection)
-- [ ] Card payments (sync) and bank transfer (async via Sidekiq)
+- [x] Payment model with AASM state machine (`pending → authorized → captured / failed`)
+- [x] `POST /api/v1/payments` and `GET /api/v1/payments/:id`
+- [x] Idempotency-Key header support (duplicate request protection)
+- [x] Card payments (sync) and bank transfer (async via Sidekiq)
 - [ ] Webhook delivery with HMAC signatures and exponential backoff retries
-- [ ] Multi-currency support (USD, JPY, INR) with mock conversion
+- [x] Multi-currency support (USD, JPY, INR) with mock conversion
 - [ ] Basic fraud detection rules
 - [ ] `/api/v1/metrics` observability endpoint
 - [ ] RSpec test suite (unit, request, integration)
