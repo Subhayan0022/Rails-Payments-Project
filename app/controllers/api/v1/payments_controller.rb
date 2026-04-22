@@ -27,7 +27,7 @@ module Api
       private
 
       def payment_params
-        params.permit(
+        params.require(:payment).permit(
           :amount, :currency, :payment_method,
           :customer_email, :customer_name, :description,
           payment_details: {}

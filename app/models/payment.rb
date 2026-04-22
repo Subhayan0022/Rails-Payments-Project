@@ -17,12 +17,18 @@ class Payment < ApplicationRecord
 
     event :capture do
       transitions from: :authorized, to: :captured
-      after { update!(captured_at: Time.current) }
+      after do
+        update!(captured_at: Time.current)
+        enqueue_webhook("payment.succeeded")
+      end
     end
 
     event :fail do
       transitions from: %i[pending authorized], to: :failed
-      after { update!(failed_at: Time.current) }
+      after do
+        update!(failed_at: Time.current)
+        enqueue_webhook("payment.failed")
+      end
     end
   end
 
@@ -33,4 +39,20 @@ class Payment < ApplicationRecord
 
   has_many :payment_attempts, dependent: :destroy
   has_many :webhook_deliveries, dependent: :destroy
+
+  private
+
+  def enqueue_webhook(event_type)
+    endpoint = ENV["WEBHOOK_ENDPOINT_URL"]
+    return if endpoint.blank?
+
+    delivery = webhook_deliveries.create!(
+      event_type:     event_type,
+      endpoint_url:   endpoint,
+      status:         "pending",
+      attempt_number: 0
+    )
+
+    Webhooks::DeliverWebhookJob.perform_later(delivery.id)
+  end
 end
