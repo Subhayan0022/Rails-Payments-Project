@@ -9,7 +9,10 @@ module Payments
     def call
       return cached_response if duplicate_request?
 
-      payment = create_payment!
+      assessment = Fraud::RiskAssessor.call(params)
+      return block_response(assessment) if assessment[:blocked]
+
+      payment = create_payment!(assessment[:score])
       process_payment(payment)
       store_idempotency_key(payment) if idempotency_key.present?
 
@@ -29,7 +32,11 @@ module Payments
       ServiceResult.cached(@existing_key.response_body)
     end
 
-    def create_payment!
+    def block_response(assessment)
+      ServiceResult.failure(["Payment blocked by fraud rules: #{assessment[:reasons].join(', ')} "])
+    end
+
+    def create_payment!(risk_score)
       Payment.create!(
         amount: params[:amount],
         currency: params[:currency] || "USD",
@@ -39,6 +46,7 @@ module Payments
         description: params[:description],
         payment_details: params[:payment_details] || {},
         idempotency_key: idempotency_key,
+        risk_score: risk_score
       )
     end
 
