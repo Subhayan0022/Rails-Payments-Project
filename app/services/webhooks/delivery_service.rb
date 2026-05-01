@@ -57,7 +57,7 @@ module Webhooks
       delivery.update!(
         attempt_number: delivery.attempt_number + 1,
         status: "failed",
-        error_message: message,
+        error_message: error_message,
       )
     end
   end
