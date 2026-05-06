@@ -9,7 +9,7 @@ module Webhooks
       return if delivery.status == "delivered" # idempotency here
 
       response = Webhooks::DeliveryService.new(delivery).call
-      raise "Webhook failed: HTTPS #{response.code}: #{response.message}" unless response.success?
+      raise "Webhook failed: HTTP #{response.status}: #{response.body}" unless response.success?
     end
   end
 end
