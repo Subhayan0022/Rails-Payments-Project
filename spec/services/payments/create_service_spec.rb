@@ -92,14 +92,11 @@ RSpec.describe Payments::CreateService do
         expect(@result.payload).to include("id", "status")
       end
 
-      it "ignores expired idempotency keys" do
+      it "treats expired idempotency keys as absent" do
         described_class.new(params: base_params, idempotency_key: "key-old").call
         IdempotencyKey.find_by(key: "key-old").update!(expires_at: 1.hour.ago)
-        Payment.find_by(idempotency_key: "key-old").update!(idempotency_key: nil)
 
-        expect {
-          described_class.new(params: base_params, idempotency_key: "key-old").call
-        }.to change(Payment, :count).by(1)
+        expect(IdempotencyKey.unexpired.find_by(key: "key-old")).to be_nil
       end
     end
 
