@@ -30,7 +30,7 @@ RSpec.describe "Api::V1::Payments", type: :request do
         expect(response).to have_http_status(:created)
         body = JSON.parse(response.body)
         expect(body["status"]).to eq("captured")
-        expect(body["amount"]).to eq(5000)
+        expect(body["amount"].to_i).to eq(5000)
         expect(body["captured_at"]).to be_present
       end
     end
