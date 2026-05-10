@@ -1,6 +1,6 @@
 module Api
   module V1
-    class MetricsController < ApplicationController
+    class MetricsController < BaseController
       WINDOWS = {
         "1h"  => 1.hour,
         "24h" => 24.hours,

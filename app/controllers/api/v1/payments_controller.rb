@@ -1,6 +1,6 @@
 module Api
   module V1
-    class PaymentsController < ApplicationController
+    class PaymentsController < BaseController
       def create
         result = Payments::CreateService.new(
           params: payment_params,
