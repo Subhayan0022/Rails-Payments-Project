@@ -37,6 +37,7 @@ class Payment < ApplicationRecord
   validates :customer_email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :payment_method, inclusion: { in: Payment::PAYMENT_METHODS }, presence: true
 
+  belongs_to :merchant
   has_many :payment_attempts, dependent: :destroy
   has_many :webhook_deliveries, dependent: :destroy
 

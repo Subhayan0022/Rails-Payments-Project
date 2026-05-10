@@ -40,11 +40,11 @@ module Api
       private
 
       def scoped_payments
-        apply_window(Payment.all)
+        apply_window(current_merchant.payments)
       end
 
       def scoped_webhooks
-        apply_window(WebhookDelivery.all)
+        apply_window(WebhookDelivery.where(payment_id: current_merchant.payments.select(:id)))
       end
 
       def apply_window(relation)

@@ -4,6 +4,7 @@ module Api
       def create
         result = Payments::CreateService.new(
           params: payment_params,
+          merchant: current_merchant,
           idempotency_key: request.headers["Idempotency-Key"]
         ).call
 
@@ -18,7 +19,7 @@ module Api
       end
 
       def show
-        payment = Payment.find(params[:id])
+        payment = current_merchant.payments.find(params[:id])
         render json: serialize(payment), status: :ok
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Payment not found" }, status: :not_found
