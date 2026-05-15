@@ -18,7 +18,7 @@ gem "rack-attack", "~> 6.7"
 gem "rack-cors", "~> 2.0"
 
 # JSON serialization
-gem "oj", "~> 3.16"
+gem "oj", "~> 3.17"
 
 # Structured logging
 gem "lograge", "~> 0.14"
