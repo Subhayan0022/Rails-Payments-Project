@@ -1,6 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe Payments::CreateService do
+  let(:merchant) { create(:merchant) }
+
   let(:base_params) do
     {
       amount: 5000,
@@ -17,7 +19,7 @@ RSpec.describe Payments::CreateService do
 
       it "returns success and creates a payment" do
         expect {
-          @result = described_class.new(params: base_params).call
+          @result = described_class.new(params: base_params, merchant: merchant).call
         }.to change(Payment, :count).by(1)
 
         expect(@result).to be_success
@@ -25,13 +27,13 @@ RSpec.describe Payments::CreateService do
       end
 
       it "persists the risk score from the assessor" do
-        result = described_class.new(params: base_params).call
+        result = described_class.new(params: base_params, merchant: merchant).call
         expect(result.payload.risk_score).to eq(0)
       end
 
       it "invokes the CardProcessor synchronously" do
         expect_any_instance_of(Payments::CardProcessor).to receive(:process)
-        described_class.new(params: base_params).call
+        described_class.new(params: base_params, merchant: merchant).call
       end
     end
 
@@ -40,12 +42,12 @@ RSpec.describe Payments::CreateService do
 
       it "enqueues ProcessPaymentJob and does not process synchronously" do
         expect {
-          described_class.new(params: params).call
+          described_class.new(params: params, merchant: merchant).call
         }.to have_enqueued_job(Payments::ProcessPaymentJob)
       end
 
       it "returns the persisted payment in pending state" do
-        result = described_class.new(params: params).call
+        result = described_class.new(params: params, merchant: merchant).call
         expect(result).to be_success
         expect(result.payload.status).to eq("pending")
       end
@@ -58,7 +60,7 @@ RSpec.describe Payments::CreateService do
 
       it "returns failure with fraud reasons and creates no payment" do
         expect {
-          @result = described_class.new(params: blocked_params).call
+          @result = described_class.new(params: blocked_params, merchant: merchant).call
         }.not_to change(Payment, :count)
 
         expect(@result).to be_failure
@@ -68,7 +70,7 @@ RSpec.describe Payments::CreateService do
 
       it "does not call any processor" do
         expect_any_instance_of(Payments::CardProcessor).not_to receive(:process)
-        described_class.new(params: blocked_params).call
+        described_class.new(params: blocked_params, merchant: merchant).call
       end
     end
 
@@ -77,15 +79,15 @@ RSpec.describe Payments::CreateService do
 
       it "stores the key after a successful create" do
         expect {
-          described_class.new(params: base_params, idempotency_key: "key-123").call
+          described_class.new(params: base_params, idempotency_key: "key-123", merchant: merchant).call
         }.to change(IdempotencyKey, :count).by(1)
       end
 
       it "returns a cached response on duplicate request and creates no new payment" do
-        described_class.new(params: base_params, idempotency_key: "key-abc").call
+        described_class.new(params: base_params, idempotency_key: "key-abc", merchant: merchant).call
 
         expect {
-          @result = described_class.new(params: base_params, idempotency_key: "key-abc").call
+          @result = described_class.new(params: base_params, idempotency_key: "key-abc", merchant: merchant).call
         }.not_to change(Payment, :count)
 
         expect(@result).to be_cached
@@ -93,7 +95,7 @@ RSpec.describe Payments::CreateService do
       end
 
       it "treats expired idempotency keys as absent" do
-        described_class.new(params: base_params, idempotency_key: "key-old").call
+        described_class.new(params: base_params, idempotency_key: "key-old", merchant: merchant).call
         IdempotencyKey.find_by(key: "key-old").update!(expires_at: 1.hour.ago)
 
         expect(IdempotencyKey.unexpired.find_by(key: "key-old")).to be_nil
@@ -102,7 +104,7 @@ RSpec.describe Payments::CreateService do
 
     context "with invalid params" do
       it "returns failure with validation errors" do
-        result = described_class.new(params: base_params.merge(currency: "EUR")).call
+        result = described_class.new(params: base_params.merge(currency: "EUR"), merchant: merchant).call
         expect(result).to be_failure
         expect(result.errors.join).to match(/currency/i)
       end
@@ -110,7 +112,7 @@ RSpec.describe Payments::CreateService do
       it "does not enqueue the bank_transfer job on validation failure" do
         params = base_params.merge(payment_method: "bank_transfer", amount: -10)
         expect {
-          described_class.new(params: params).call
+          described_class.new(params: params, merchant: merchant).call
         }.not_to have_enqueued_job(Payments::ProcessPaymentJob)
       end
     end

@@ -1,7 +1,9 @@
 require 'rails_helper'
 
 RSpec.describe "Api::V1::Metrics", type: :request do
-  let(:headers) { { "User-Agent" => "rspec-test" } }
+  let(:merchant)  { create(:merchant) }
+  let(:api_token) { ApiKey.generate!(merchant: merchant).plaintext }
+  let(:headers)   { { "User-Agent" => "rspec-test", "Authorization" => "Bearer #{api_token}" } }
 
   describe "GET /api/v1/metrics" do
     it "returns zeroed metrics when no payments exist" do
@@ -19,11 +21,11 @@ RSpec.describe "Api::V1::Metrics", type: :request do
     end
 
     it "aggregates payment counts by status and success rate" do
-      create(:payment, status: "captured", amount: 1000, currency: "USD")
-      create(:payment, status: "captured", amount: 2500, currency: "USD")
-      create(:payment, status: "captured", amount: 700,  currency: "INR")
-      create(:payment, status: "failed",   amount: 5000, currency: "USD")
-      create(:payment, status: "pending",  amount: 100,  currency: "USD")
+      create(:payment, merchant: merchant, status: "captured", amount: 1000, currency: "USD")
+      create(:payment, merchant: merchant, status: "captured", amount: 2500, currency: "USD")
+      create(:payment, merchant: merchant, status: "captured", amount: 700,  currency: "INR")
+      create(:payment, merchant: merchant, status: "failed",   amount: 5000, currency: "USD")
+      create(:payment, merchant: merchant, status: "pending",  amount: 100,  currency: "USD")
 
       get "/api/v1/metrics", headers: headers
 
@@ -38,7 +40,7 @@ RSpec.describe "Api::V1::Metrics", type: :request do
     end
 
     it "groups webhook deliveries by status" do
-      payment = create(:payment, status: "captured")
+      payment = create(:payment, merchant: merchant, status: "captured")
       create(:webhook_delivery, payment: payment, status: "delivered")
       create(:webhook_delivery, payment: payment, status: "delivered")
       create(:webhook_delivery, payment: payment, status: "failed")
@@ -52,8 +54,8 @@ RSpec.describe "Api::V1::Metrics", type: :request do
     context "with a window param" do
       it "scopes results to the window" do
         Timecop.freeze(Time.current) do
-          create(:payment, status: "captured", amount: 1000, currency: "USD", created_at: 2.hours.ago)
-          create(:payment, status: "captured", amount: 2000, currency: "USD", created_at: 30.minutes.ago)
+          create(:payment, merchant: merchant, status: "captured", amount: 1000, currency: "USD", created_at: 2.hours.ago)
+          create(:payment, merchant: merchant, status: "captured", amount: 2000, currency: "USD", created_at: 30.minutes.ago)
 
           get "/api/v1/metrics", params: { window: "1h" }, headers: headers
 
@@ -65,7 +67,7 @@ RSpec.describe "Api::V1::Metrics", type: :request do
       end
 
       it "ignores unknown window values and reports 'all'" do
-        create(:payment, status: "captured", amount: 1000, currency: "USD", created_at: 10.days.ago)
+        create(:payment, merchant: merchant, status: "captured", amount: 1000, currency: "USD", created_at: 10.days.ago)
 
         get "/api/v1/metrics", params: { window: "bogus" }, headers: headers
 

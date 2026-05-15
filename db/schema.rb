@@ -10,22 +10,48 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2024_00_01_000005) do
+ActiveRecord::Schema[8.1].define(version: 2024_00_01_000007) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
+
+  create_table "api_keys", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "key_hash", null: false
+    t.string "key_prefix", null: false
+    t.string "last4", null: false
+    t.datetime "last_used_at"
+    t.uuid "merchant_id", null: false
+    t.string "name"
+    t.datetime "revoked_at"
+    t.datetime "updated_at", null: false
+    t.index ["key_hash"], name: "index_api_keys_on_key_hash", unique: true
+    t.index ["key_prefix"], name: "index_api_keys_on_key_prefix"
+    t.index ["merchant_id"], name: "index_api_keys_on_merchant_id"
+  end
 
   create_table "idempotency_keys", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "expires_at", null: false
     t.string "key", null: false
+    t.uuid "merchant_id", null: false
     t.string "payment_id"
     t.string "request_path", null: false
     t.jsonb "response_body", default: "{}", null: false
     t.integer "response_status", null: false
     t.datetime "updated_at", null: false
     t.index ["expires_at"], name: "index_idempotency_keys_on_expires_at"
-    t.index ["key"], name: "index_idempotency_keys_on_key", unique: true
+    t.index ["merchant_id", "key"], name: "index_idempotency_keys_on_merchant_id_and_key", unique: true
+    t.index ["merchant_id"], name: "index_idempotency_keys_on_merchant_id"
+  end
+
+  create_table "merchants", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_merchants_on_email", unique: true
   end
 
   create_table "payment_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -52,13 +78,15 @@ ActiveRecord::Schema[8.1].define(version: 2024_00_01_000005) do
     t.datetime "failed_at"
     t.string "failure_reason"
     t.string "idempotency_key"
+    t.uuid "merchant_id", null: false
     t.jsonb "payment_details", default: {}, null: false
     t.string "payment_method", null: false
     t.integer "risk_score", default: 0
     t.string "status", default: "pending", null: false
     t.datetime "updated_at", null: false
     t.index ["customer_email"], name: "index_payments_on_customer_email"
-    t.index ["idempotency_key"], name: "index_payments_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["merchant_id", "idempotency_key"], name: "index_payments_on_merchant_and_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["merchant_id"], name: "index_payments_on_merchant_id"
     t.index ["payment_details"], name: "index_payments_on_payment_details", using: :gin
     t.index ["status"], name: "index_payments_on_status"
   end
@@ -81,6 +109,9 @@ ActiveRecord::Schema[8.1].define(version: 2024_00_01_000005) do
     t.index ["status"], name: "index_webhook_deliveries_on_status"
   end
 
+  add_foreign_key "api_keys", "merchants"
+  add_foreign_key "idempotency_keys", "merchants"
   add_foreign_key "payment_attempts", "payments"
+  add_foreign_key "payments", "merchants"
   add_foreign_key "webhook_deliveries", "payments"
 end

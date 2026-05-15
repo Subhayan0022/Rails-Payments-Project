@@ -1,10 +1,14 @@
 require 'rails_helper'
 
 RSpec.describe "Api::V1::Payments", type: :request do
+  let(:merchant)  { create(:merchant) }
+  let(:api_token) { ApiKey.generate!(merchant: merchant).plaintext }
+
   let(:headers) do
     {
-      "Content-Type" => "application/json",
-      "User-Agent"   => "rspec-test",
+      "Content-Type"  => "application/json",
+      "User-Agent"    => "rspec-test",
+      "Authorization" => "Bearer #{api_token}",
     }
   end
 
@@ -109,7 +113,7 @@ RSpec.describe "Api::V1::Payments", type: :request do
   end
 
   describe "GET /api/v1/payments/:id" do
-    let(:payment) { create(:payment, status: "captured", captured_at: Time.current) }
+    let(:payment) { create(:payment, merchant: merchant, status: "captured", captured_at: Time.current) }
 
     it "returns 200 with the serialized payment" do
       get "/api/v1/payments/#{payment.id}", headers: headers

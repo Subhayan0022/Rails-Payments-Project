@@ -1,9 +1,10 @@
 module Payments
   class CreateService
-    attr_reader :params, :idempotency_key
+    attr_reader :params, :idempotency_key, :merchant
 
-    def initialize(params:, idempotency_key: nil)
+    def initialize(params:, merchant:, idempotency_key: nil)
       @params = params
+      @merchant = merchant
       @idempotency_key = idempotency_key
     end
     def call
@@ -24,7 +25,7 @@ module Payments
     private
     def duplicate_request?
       return false if idempotency_key.blank?
-      @existing_key = IdempotencyKey.unexpired.find_by(key: idempotency_key)
+      @existing_key = merchant.idempotency_keys.unexpired.find_by(key: idempotency_key)
       @existing_key.present?
     end
 
@@ -37,7 +38,7 @@ module Payments
     end
 
     def create_payment!(risk_score)
-      Payment.create!(
+      merchant.payments.create!(
         amount: params[:amount],
         currency: params[:currency] || "USD",
         payment_method: params[:payment_method],
@@ -61,7 +62,7 @@ module Payments
     end
 
     def store_idempotency_key(payment)
-      IdempotencyKey.create!(
+      merchant.idempotency_keys.create!(
         key: idempotency_key,
         request_path: "/api/v1/payments",
         response_body: { id: payment.id, status: payment.status },
