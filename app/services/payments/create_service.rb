@@ -10,6 +10,7 @@ module Payments
     def call
       return cached_response if duplicate_request?
 
+      purge_expired_idempotency_key
       assessment = Fraud::RiskAssessor.call(params)
       return block_response(assessment) if assessment[:blocked]
 
@@ -31,6 +32,16 @@ module Payments
 
     def cached_response
       ServiceResult.cached(@existing_key.response_body)
+    end
+
+    def purge_expired_idempotency_key
+      return if idempotency_key.blank?
+
+      expired = merchant.idempotency_keys.where(key: idempotency_key).where("expires_at <= ?", Time.current)
+      return unless expired.exists?
+
+      merchant.payments.where(idempotency_key: idempotency_key).update_all(idempotency_key: nil)
+      expired.delete_all
     end
 
     def block_response(assessment)
