@@ -1,0 +1,282 @@
+openapi: 3.0.1
+info:
+  title: Payment Gateway API
+  version: v1
+  description: |
+    A multi-tenant payment gateway API supporting card and bank-transfer payments,
+    idempotent writes, fraud screening, and webhook delivery.
+
+    Authenticate every request with `Authorization: Bearer pk_live_...` where the
+    token is an API key issued to a merchant. All resources are scoped to the
+    calling merchant — one merchant cannot read or affect another's data.
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+security:
+  - bearer_auth: []
+
+tags:
+  - name: Payments
+    description: Create and retrieve payments
+  - name: Metrics
+    description: Aggregate metrics for the calling merchant
+
+paths:
+  /api/v1/payments:
+    post:
+      tags: [Payments]
+      summary: Create a payment
+      description: |
+        Creates a new payment. Card payments are captured synchronously;
+        bank-transfer payments are persisted as `pending` and processed
+        asynchronously. Pass an `Idempotency-Key` header to make the request
+        safely retryable — a repeat call with the same key returns the cached
+        response and does not create a new payment.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '201':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '200':
+          description: Cached response returned for a repeated idempotency key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Validation or fraud-rule failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string, example: 'Too Many Requests' }
+                  retry_after: { type: integer, example: 60 }
+
+  /api/v1/payments/{id}:
+    get:
+      tags: [Payments]
+      summary: Retrieve a payment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: Payment UUID
+      responses:
+        '200':
+          description: Payment found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Payment not found, or it belongs to another merchant
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string, example: 'Payment not found' }
+
+  /api/v1/metrics:
+    get:
+      tags: [Metrics]
+      summary: Aggregate payment and webhook metrics for the calling merchant
+      parameters:
+        - name: window
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [1h, 24h, 7d, 30d, all]
+          description: |
+            Time window for aggregation. Defaults to `all` when omitted or
+            unrecognized.
+      responses:
+        '200':
+          description: Metrics snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsSnapshot'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearer_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key (pk_live_*)
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, maxLength: 255 }
+      description: |
+        A client-generated string that uniquely identifies the request.
+        Repeating a request with the same key returns the cached response
+        instead of creating a new payment. Scoped per merchant.
+
+  responses:
+    Unauthorized:
+      description: Missing, malformed, or revoked bearer token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string, example: 'Unauthorized' }
+
+  schemas:
+    PaymentRequest:
+      type: object
+      required: [payment]
+      properties:
+        payment:
+          type: object
+          required: [amount, currency, payment_method, customer_email]
+          properties:
+            amount:
+              type: integer
+              minimum: 1
+              example: 5000
+              description: Amount in minor units (e.g. cents for USD).
+            currency:
+              type: string
+              example: USD
+              enum: [USD, INR, EUR, GBP]
+            payment_method:
+              type: string
+              enum: [card, bank_transfer]
+            customer_email:
+              type: string
+              format: email
+              example: customer@example.com
+            customer_name:
+              type: string
+              example: Jane Doe
+            description:
+              type: string
+              example: Order #1234
+            payment_details:
+              type: object
+              additionalProperties: true
+              example:
+                card_number: '4242424242424242'
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          example: '5000'
+        currency:
+          type: string
+          example: USD
+        status:
+          type: string
+          enum: [pending, processing, captured, failed, refunded]
+        payment_method:
+          type: string
+          enum: [card, bank_transfer]
+        customer_email:
+          type: string
+          format: email
+        customer_name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        risk_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        captured_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        errors:
+          type: array
+          items: { type: string }
+          example:
+            - "Currency 'EUR' is not supported"
+
+    MetricsSnapshot:
+      type: object
+      properties:
+        window:
+          type: string
+          example: 24h
+        payments:
+          type: object
+          properties:
+            total: { type: integer, example: 42 }
+            by_status:
+              type: object
+              additionalProperties: { type: integer }
+              example:
+                captured: 30
+                failed: 8
+                pending: 4
+            success_rate:
+              type: number
+              nullable: true
+              example: 0.79
+        volume_captured:
+          type: object
+          additionalProperties: { type: string }
+          example:
+            USD: '125000.0'
+            INR: '8400.0'
+        webhooks:
+          type: object
+          properties:
+            by_status:
+              type: object
+              additionalProperties: { type: integer }
+              example:
+                delivered: 28
+                failed: 2
+        generated_at:
+          type: string
+          format: date-time

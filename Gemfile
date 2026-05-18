@@ -14,6 +14,10 @@ gem "aasm", "~> 5.5"
 # Rate limiting
 gem "rack-attack", "~> 6.7"
 
+# OpenAPI / Swagger UI
+gem "rswag-api", "~> 2.13"
+gem "rswag-ui", "~> 2.13"
+
 # CORS
 gem "rack-cors", "~> 2.0"
 
