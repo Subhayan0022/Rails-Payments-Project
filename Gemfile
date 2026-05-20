@@ -28,7 +28,7 @@ gem "oj", "~> 3.16"
 gem "lograge", "~> 0.14"
 
 # HTTP client for webhook delivery
-gem "faraday", "~> 2.9"
+gem "faraday", "~> 2.14"
 gem "faraday-retry", "~> 2.2"
 
 # Environment variables
