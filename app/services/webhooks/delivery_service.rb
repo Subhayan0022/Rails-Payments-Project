@@ -44,20 +44,22 @@ module Webhooks
     end
 
     def record_result!(response)
+      delivery.attempt_number += 1
       delivery.update!(
         response_status: response.status,
         response_body: response.body.to_s[0, 2000], # 2000 char limit
-        attempt_number: delivery.attempt_number + 1,
         status: response.success? ? "delivered" : "failed",
-        error_message: response.success? ? nil : "HTTP #{response.status}"
+        error_message: response.success? ? nil : "HTTP #{response.status}",
+        next_retry_at: response.success? ? nil : delivery.backoff_until
       )
     end
 
     def record_error!(error_message)
+      delivery.attempt_number += 1
       delivery.update!(
-        attempt_number: delivery.attempt_number + 1,
         status: "failed",
         error_message: error_message,
+        next_retry_at: delivery.backoff_until
       )
     end
   end

@@ -6,3 +6,11 @@
   - [low, 1]
 
 :max_retries: 5
+
+:scheduler:
+  :schedule:
+    sweep_webhook_outbox:
+      cron: "*/5 * * * *"
+      class: Webhooks::SweepOutboxJob
+      queue: low
+      description: "Re-enqueue stuck/failed webhook deliveries and retire exhausted ones"
