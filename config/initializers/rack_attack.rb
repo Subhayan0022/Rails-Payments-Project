@@ -1,9 +1,25 @@
 # Rack::Attack — rate limiting and replay attack protection.
-# Uses Redis as the backing store when available, falls back to memory.
+# Uses a Redis-backed store so throttle counters are shared across processes and
+# survive restarts. Falls back to an in-process memory store in test, or if Redis
+# is unreachable at boot.
 class Rack::Attack
-  # Use memory store for now; swap for RedisCacheStore in production
-  # for distributed rate limiting across multiple app instances
-  Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+  Rack::Attack.cache.store =
+    if Rails.env.test?
+      ActiveSupport::Cache::MemoryStore.new
+    else
+      begin
+        ActiveSupport::Cache::RedisCacheStore.new(
+          url: ENV.fetch("RACK_ATTACK_REDIS_URL") { ENV.fetch("REDIS_URL", "redis://localhost:6379/0") },
+          namespace: "rack_attack",
+          error_handler: lambda { |method:, returning:, exception:|
+            Rails.logger.warn("[rack-attack] redis error in #{method}: #{exception.class}: #{exception.message}")
+          }
+        )
+      rescue StandardError => e
+        Rails.logger.warn("[rack-attack] Redis unavailable, falling back to memory store: #{e.message}")
+        ActiveSupport::Cache::MemoryStore.new
+      end
+    end
 
   # Throttle all requests by IP (100 requests / 60s)
   throttle("req/ip", limit: 100, period: 60) do |req|

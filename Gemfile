@@ -8,6 +8,9 @@ gem "puma", ">= 5.0"
 gem "sidekiq", "~> 7.0"
 gem "sidekiq-scheduler", "~> 5.0"
 
+# Redis client (Rack::Attack distributed store)
+gem "redis", "~> 5.0"
+
 # State machine for payment lifecycle
 gem "aasm", "~> 5.5"
 

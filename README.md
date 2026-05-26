@@ -12,9 +12,10 @@ A production-grade mini payment gateway API built with Ruby on Rails. Designed w
 | Database | PostgreSQL 16 |
 | Background Jobs | Sidekiq 7 + Redis 7 |
 | State Machine | AASM |
-| Rate Limiting | Rack::Attack |
+| Rate Limiting | Rack::Attack (Redis-backed) |
 | HTTP Client | Faraday |
 | Logging | Lograge (structured JSON) |
+| API Docs | OpenAPI 3 + Swagger UI (rswag) |
 | Testing | RSpec, FactoryBot, WebMock |
 | Infrastructure | Docker + Docker Compose |
 
@@ -30,11 +31,14 @@ A production-grade mini payment gateway API built with Ruby on Rails. Designed w
 - [x] Idempotency-Key header support (24h replay protection)
 - [x] Card payments (sync) and bank transfer (async via Sidekiq)
 - [x] Webhook delivery with HMAC-SHA256 signatures and exponential backoff retries
+- [x] Webhook outbox sweeper — re-drives stuck deliveries, retires exhausted ones
 - [x] Multi-currency allow-list (USD, JPY, INR) — no conversion yet
 - [x] Fraud detection with rule-based risk scoring
-- [ ] `/api/v1/metrics` observability endpoint
-- [ ] RSpec test suite (unit, request, integration)
-- [ ] OpenAPI / Swagger documentation
+- [x] Multi-tenant API key authentication (`Authorization: Bearer pk_live_…`)
+- [x] `/api/v1/metrics` observability endpoint
+- [x] Redis-backed rate limiting (shared across processes)
+- [x] RSpec test suite (model, request, service)
+- [x] OpenAPI / Swagger documentation (`/api-docs`)
 
 ---
 
@@ -88,12 +92,25 @@ AASM state transitions on Payment fire:
 
 ## API
 
+Interactive Swagger UI is available at `/api-docs` (OpenAPI 3 spec at `swagger/v1/swagger.yaml`).
+
+### Authentication
+
+Every `/api/v1` endpoint requires a merchant API key sent as a bearer token:
+
+```
+Authorization: Bearer pk_live_<token>
+```
+
+Keys are issued per merchant via `ApiKey.generate!(merchant:)`, stored only as a SHA-256 hash, and can be revoked. All resources are scoped to the calling merchant — one merchant cannot read or affect another's payments, metrics, or idempotency keys. Missing, malformed, revoked, or inactive-merchant keys return `401 Unauthorized`.
+
 ### Create Payment
 
 `POST /api/v1/payments`
 
 Headers:
 ```
+Authorization: Bearer pk_live_<token>
 Content-Type: application/json
 Idempotency-Key: <unique-key>   # optional but recommended
 ```
@@ -120,7 +137,23 @@ Responses:
 
 `GET /api/v1/payments/:id`
 
-Returns the payment with current status and timestamps.
+Returns the payment with current status and timestamps. Returns `404` if the payment belongs to another merchant.
+
+### Metrics
+
+`GET /api/v1/metrics?window=24h`
+
+Returns aggregate counts and captured volume for the calling merchant. `window` accepts `1h`, `24h`, `7d`, `30d`, or `all` (default).
+
+```json
+{
+  "window": "24h",
+  "payments": { "total": 42, "by_status": { "captured": 30, "failed": 8, "pending": 4 }, "success_rate": 0.79 },
+  "volume_captured": { "USD": "125000.0", "INR": "8400.0" },
+  "webhooks": { "by_status": { "delivered": 28, "failed": 2 } },
+  "generated_at": "2026-05-21T12:00:00Z"
+}
+```
 
 ---
 
@@ -151,7 +184,8 @@ Payload:
 }
 ```
 
-Retry policy: exponential backoff, up to 5 attempts via ActiveJob's `polynomially_longer`.
+Retry policy: `DeliverWebhookJob` retries with exponential backoff. As a safety net, `Webhooks::SweepOutboxJob` runs every 5 minutes (sidekiq-scheduler) and re-enqueues any delivery still `pending`/`failed` and past its `next_retry_at`, up to `WebhookDelivery::MAX_ATTEMPTS` (8); deliveries past the cap are marked `exhausted` and no longer retried. This makes delivery resilient to worker crashes and lost jobs.
+
 Verify signatures using `Webhooks::SignatureService.verify(payload_string, signature_header)`.
 
 ---
@@ -178,7 +212,7 @@ Rack::Attack throttles:
 - **100 req / 60s per IP** — global
 - **20 POST /payments / 60s per IP** — tighter payment creation
 
-Requests missing a `User-Agent` are blocked. Throttled responses return `429` with a JSON body. Backed by an in-process `MemoryStore` in dev; swap for `RedisCacheStore` in production for shared counters.
+Requests missing a `User-Agent` are blocked. Throttled responses return `429` with a JSON body. Counters are backed by Redis (`RedisCacheStore`, namespaced `rack_attack`) so they are shared across processes and survive restarts; the test environment uses an in-process `MemoryStore`, and the store falls back to memory if Redis is unreachable at boot.
 
 ---
 
@@ -189,7 +223,8 @@ Requests missing a `User-Agent` are blocked. Throttled responses return `429` wi
 | `DB_HOST` | PostgreSQL host | `postgres` |
 | `DB_USERNAME` | PostgreSQL user | `postgres` |
 | `DB_PASSWORD` | PostgreSQL password | `password` |
-| `REDIS_URL` | Redis connection URL | `redis://redis:6379/0` |
+| `REDIS_URL` | Redis connection URL (Sidekiq + rate limiting) | `redis://redis:6379/0` |
+| `RACK_ATTACK_REDIS_URL` | Override Redis URL for rate-limit counters | falls back to `REDIS_URL` |
 | `WEBHOOK_SECRET` | HMAC signing secret for webhooks | — |
 | `WEBHOOK_ENDPOINT_URL` | Destination URL for outbound webhooks | — |
 | `RAILS_MASTER_KEY` | Rails credentials key | — |
