@@ -10,7 +10,26 @@ Rails.application.routes.draw do
     end
   end
 
-  # Sidekiq Web UI (disable in production or add auth)
   require "sidekiq/web"
-  mount Sidekiq::Web => "/sidekiq"
+
+  sidekiq_user = ENV["SIDEKIQ_USER"]
+  sidekiq_password = ENV["SIDEKIQ_PASSWORD"]
+
+  if sidekiq_user.present? && sidekiq_password.present?
+    Sidekiq::Web.use(Rack::Auth::Basic) do |username, password|
+      # Constant-time comparison over fixed-length digests to avoid leaking
+      # credential length or content via timing.
+      ActiveSupport::SecurityUtils.secure_compare(
+        ::Digest::SHA256.hexdigest(username),
+        ::Digest::SHA256.hexdigest(sidekiq_user)
+      ) & ActiveSupport::SecurityUtils.secure_compare(
+        ::Digest::SHA256.hexdigest(password),
+        ::Digest::SHA256.hexdigest(sidekiq_password)
+      )
+    end
+    mount Sidekiq::Web => "/sidekiq"
+  elsif !Rails.env.production?
+    # No credentials configured, only safe to expose outside production.
+    mount Sidekiq::Web => "/sidekiq"
+  end
 end

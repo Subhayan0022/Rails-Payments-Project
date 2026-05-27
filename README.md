@@ -56,7 +56,7 @@ docker compose exec app bundle exec rails db:create db:migrate
 ```
 
 The API will be available at `http://localhost:3000`.
-Sidekiq Web UI: `http://localhost:3000/sidekiq`
+Sidekiq Web UI: `http://localhost:3000/sidekiq` (HTTP Basic auth via `SIDEKIQ_USER` / `SIDEKIQ_PASSWORD`; in production the dashboard is not mounted unless both are set).
 
 ---
 
@@ -228,3 +228,5 @@ Requests missing a `User-Agent` are blocked. Throttled responses return `429` wi
 | `WEBHOOK_SECRET` | HMAC signing secret for webhooks | — |
 | `WEBHOOK_ENDPOINT_URL` | Destination URL for outbound webhooks | — |
 | `RAILS_MASTER_KEY` | Rails credentials key | — |
+| `SIDEKIQ_USER` | HTTP Basic username for the `/sidekiq` dashboard | — |
+| `SIDEKIQ_PASSWORD` | HTTP Basic password for the `/sidekiq` dashboard | — |
