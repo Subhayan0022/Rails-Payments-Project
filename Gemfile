@@ -22,7 +22,7 @@ gem "rswag-api", "~> 2.13"
 gem "rswag-ui", "~> 2.13"
 
 # CORS
-gem "rack-cors", "~> 2.0"
+gem "rack-cors", "~> 3.0"
 
 # JSON serialization
 gem "oj", "~> 3.16"
